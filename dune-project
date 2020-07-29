@@ -1,5 +1,7 @@
 (lang dune 2.6)
 
+(name mdfs)
+
 (implicit_transitive_deps false)
 
 (generate_opam_files true)
