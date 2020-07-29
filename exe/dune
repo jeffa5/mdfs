@@ -1,0 +1,3 @@
+(executable
+ (name mdfs)
+ (libraries cmdliner mdfs_lib logs.cli fmt.tty logs.fmt fmt.cli lwt.unix))
