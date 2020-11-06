@@ -21,7 +21,8 @@
  (depends
   (fpath
    (>= 0.7.0))
-  (omd :dev)
+  (omd
+   (>= 2.0.0))
   (logs
    (>= 0.7.0))
   (bos

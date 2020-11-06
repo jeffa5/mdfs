@@ -11,7 +11,7 @@ bug-reports: "https://github.com/jeffa5/mdfs/issues"
 depends: [
   "dune" {>= "2.6"}
   "fpath" {>= "0.7.0"}
-  "omd" {dev}
+  "omd" {>= "2.0.0"}
   "logs" {>= "0.7.0"}
   "bos" {>= "0.2.0"}
   "rresult" {>= "0.6.0"}
@@ -34,3 +34,4 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/jeffa5/mdfs.git"
+pin-depends: [["omd" "https://github.com/ocaml/omd.git"]]
