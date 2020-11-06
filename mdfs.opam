@@ -34,4 +34,4 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/jeffa5/mdfs.git"
-pin-depends: [["omd" "https://github.com/ocaml/omd.git"]]
+pin-depends: [["omd" "git+https://github.com/ocaml/omd.git"]]

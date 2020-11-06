@@ -1,1 +1,1 @@
-pin-depends: [["omd" "https://github.com/ocaml/omd.git"]]
+pin-depends: [["omd" "git+https://github.com/ocaml/omd.git"]]
