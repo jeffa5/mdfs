@@ -1,4 +1,5 @@
 (executable
  (name mdfs)
  (public_name mdfs)
- (libraries cmdliner mdfs_lib logs.cli fmt.tty logs.fmt fmt.cli lwt.unix))
+ (libraries cmdliner mdfs_lib logs.cli fmt.tty logs.fmt fmt.cli lwt.unix
+   rresult fpath))

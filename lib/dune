@@ -1,3 +1,3 @@
 (library
  (name mdfs_lib)
- (libraries omd lwt lwt.unix logs))
+ (libraries omd logs bos fpath rresult))

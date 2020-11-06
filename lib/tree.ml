@@ -1,54 +1,76 @@
-type subtree = File of string * Omd.doc | Dir of string * subtree list
+type tree = File of string * Omd.doc | Dir of string * tree list
 
-type t = subtree list
-
-open Lwt.Syntax
+type t = tree list
 
 module Log = (val Logs.src_log (Logs.Src.create "mdfs"))
 
-let is_md_file f =
-  match Filename.extension f with ".md" | ".markdown" -> true | _ -> false
+open Rresult
+open Bos
 
-let parse dir =
+let is_md_file f =
+  match Fpath.get_ext f with ".md" | ".markdown" -> true | _ -> false
+
+let parse src_dir =
+  Log.info (fun f -> f "Parsing from %a" Fpath.pp src_dir);
   let rec handle_dir dir =
-    Lwt_unix.files_of_directory dir
-    |> Lwt_stream.filter_map_s (fun f ->
-           match f with
-           | "." | ".." -> Lwt.return_none
-           | _ -> (
-               let fn = Filename.concat dir f in
-               let* stat = Lwt_unix.stat fn in
-               match stat.st_kind with
-               | S_REG -> (
-                   match Filename.extension f with
-                   | ".md" | ".markdown" ->
-                       let+ s =
-                         let+ lines =
-                           Lwt_io.lines_of_file fn |> Lwt_stream.to_list
-                         in
-                         lines |> String.concat "\n"
-                       in
-                       Log.info (fun f -> f "Parsing %s" fn);
-                       let doc = Omd.of_string s in
-                       Option.some @@ File (f, doc)
-                   | _ ->
-                       Log.info (fun f ->
-                           f "Skipping %s" (Filename.concat dir fn));
-                       Lwt.return_none )
-               | S_DIR ->
-                   Log.info (fun f -> f "Entering %s" fn);
-                   let+ l = handle_dir fn in
-                   Option.some @@ Dir (f, l)
-               | _ -> assert false ))
-    |> Lwt_stream.to_list
+    Log.debug (fun f -> f "Parsing %a" Fpath.pp dir);
+    match OS.Dir.contents dir with
+    | Error m -> Error m
+    | Ok l ->
+        let x =
+          List.filter_map
+            (fun f ->
+              match Fpath.to_string f with
+              | "." | ".." -> None
+              | _ -> (
+                  let stat = OS.Path.stat f in
+                  match stat with
+                  | Error _ as e -> Some e
+                  | Ok stat -> (
+                      match stat.st_kind with
+                      | S_REG ->
+                          if is_md_file f then (
+                            match OS.File.read f with
+                            | Error _ as e -> Some e
+                            | Ok s ->
+                                Log.debug (fun m -> m "Parsing %a" Fpath.pp f);
+                                let doc = Omd.of_string s in
+                                let path = Fpath.basename f in
+                                Some (Ok (File (path, doc))) )
+                          else (
+                            Log.debug (fun m -> m "Skipping %a" Fpath.pp f);
+                            None )
+                      | S_DIR -> (
+                          let l = handle_dir f in
+                          match l with
+                          | Error _ as e -> Some e
+                          | Ok l ->
+                              let path = Fpath.basename f in
+                              Option.some @@ R.ok @@ Dir (path, l) )
+                      | _ -> assert false ) ))
+            l
+        in
+        List.fold_right
+          (fun t r ->
+            match r with
+            | Error _ as e -> e
+            | Ok l -> ( match t with Error _ as e -> e | Ok t -> Ok (t :: l) ))
+          x (Ok [])
   in
-  handle_dir dir
+  handle_dir src_dir
 
 let md_to_html_links d =
   let convert_link (l : Omd.link) =
-    if Filename.is_relative l.destination && is_md_file l.destination then
-      { l with destination = Filename.remove_extension l.destination ^ ".html" }
-    else l
+    let f = Fpath.of_string l.destination in
+    match f with
+    | Error _ -> l
+    | Ok f ->
+        if Fpath.is_rel f && is_md_file f then
+          {
+            l with
+            destination = Filename.remove_extension l.destination ^ ".html";
+          }
+        else l
   in
   let rec convert_inline (i : Omd.inline) =
     let il_desc =
@@ -94,31 +116,34 @@ let md_to_html_links d =
 let process t =
   Log.info (fun f -> f "Processing");
   let process_doc d = md_to_html_links d in
-  let rec process_subtree = function
+  let rec process_tree = function
     | File (f, o) -> File (f, process_doc o)
-    | Dir (f, l) -> Dir (f, List.map process_subtree l)
+    | Dir (f, l) -> Dir (f, List.map process_tree l)
   in
-  List.map process_subtree t
+  List.map process_tree t
 
-let mkdirf dir =
-  Lwt.catch
-    (fun () -> Lwt_unix.mkdir dir 0o755)
-    (function
-      | Unix.Unix_error (Unix.EEXIST, _, _) -> Lwt.return_unit
-      | exn -> raise exn)
+let mkdirf dir = OS.Dir.create ~path:true dir |> R.map (fun _ -> ())
 
 let render dir t =
-  let rec render_subtree dir = function
+  Log.info (fun f -> f "Rendering to %a" Fpath.pp dir);
+  let rec render_subtree dir t =
+    match t with
     | File (f, o) ->
-        let fn = Filename.concat dir (Filename.remove_extension f ^ ".html") in
-        Log.info (fun f -> f "Rendering %s" fn);
+        let fn = Fpath.add_seg dir f |> Fpath.set_ext "html" in
+        Log.debug (fun m -> m "Rendering file %s to %a" f Fpath.pp fn);
         let h = Omd.to_html o in
-        Lwt_stream.of_list (String.split_on_char '\n' h)
-        |> Lwt_io.lines_to_file fn
+        OS.File.write fn h
     | Dir (f, l) ->
-        let fn = Filename.concat dir f in
-        let* () = mkdirf fn in
-        Lwt_list.iter_s (fun t -> render_subtree fn t) l
+        let fn = Fpath.add_seg dir f in
+        Log.debug (fun m -> m "Rendering dir %s to %a" f Fpath.pp fn);
+        mkdirf fn >>= fun () ->
+        List.fold_left
+          (fun r t ->
+            match r with Error e -> Error e | Ok () -> render_subtree fn t)
+          (Ok ()) l
   in
-  let* () = mkdirf dir in
-  Lwt_list.iter_s (render_subtree dir) t
+  ignore @@ mkdirf dir;
+  List.fold_left
+    (fun r t ->
+      match r with Error e -> Error e | Ok () -> render_subtree dir t)
+    (Ok ()) t

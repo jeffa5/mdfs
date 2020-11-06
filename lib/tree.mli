@@ -1,12 +1,14 @@
-type subtree =
+open Rresult
+
+type tree =
   | File of string * Omd.doc
-  | Dir of string * subtree list
+  | Dir of string * tree list
       (** [t] is the representation of the filesystem tree in terms of parsed documents *)
 
-type t = subtree list
+type t = tree list
 
-val parse : string -> t Lwt.t
+val parse : Fpath.t -> (t, R.msg) result
 
 val process : t -> t
 
-val render : string -> t -> unit Lwt.t
+val render : Fpath.t -> t -> (unit, R.msg) result
