@@ -18,6 +18,8 @@
  (synopsis "Render a tree of markdown to html")
  (description
    "mdfs takes a filesystem tree of markdown files, processes them to convert links and outputs a corresponding filetree of html files")
- (depends)
+ (depends
+  (fpath
+   (>= 0.7.0)))
  (tags
   (cli markdown filesystem html)))

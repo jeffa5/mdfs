@@ -10,6 +10,7 @@ homepage: "https://github.com/jeffa5/mdfs"
 bug-reports: "https://github.com/jeffa5/mdfs/issues"
 depends: [
   "dune" {>= "2.6"}
+  "fpath" {>= "0.7.0"}
 ]
 build: [
   ["dune" "subst"] {pinned}
