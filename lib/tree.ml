@@ -65,7 +65,7 @@ let md_to_html_links d =
     match f with
     | Error _ -> l
     | Ok f ->
-        if Fpath.is_rel f && is_md_file f then
+        if Fpath.is_rel f && (is_md_file f || Fpath.get_ext f = "") then
           {
             l with
             destination = Filename.remove_extension l.destination ^ ".html";
@@ -117,8 +117,12 @@ let process t =
   Log.info (fun f -> f "Processing");
   let process_doc d = md_to_html_links d in
   let rec process_tree = function
-    | File (f, o) -> File (f, process_doc o)
-    | Dir (f, l) -> Dir (f, List.map process_tree l)
+    | File (f, o) ->
+        Log.debug (fun m -> m "Processing file %s" f);
+        File (f, process_doc o)
+    | Dir (f, l) ->
+        Log.debug (fun m -> m "Processing dir %s" f);
+        Dir (f, List.map process_tree l)
   in
   List.map process_tree t
 
