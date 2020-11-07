@@ -65,7 +65,7 @@ let md_to_html_links d =
     match f with
     | Error _ -> l
     | Ok f ->
-        if Fpath.is_rel f && (is_md_file f || Fpath.get_ext f = "") then
+        if Fpath.is_rel f && is_md_file f then
           {
             l with
             destination = Filename.remove_extension l.destination ^ ".html";
