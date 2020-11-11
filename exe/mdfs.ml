@@ -31,11 +31,15 @@ let out =
   let docv = "DIR" in
   Arg.(value & opt (some (fpath string)) None & info ~doc ~docv [ "o" ])
 
-let main dir out () =
-  match Mdfs_lib.Mdfs.convert dir ~out with
+let open_arg =
+  let doc = "Open the generated html in a browser" in
+  Arg.(value & flag & info ~doc [ "open" ])
+
+let main dir out open_ () =
+  match Mdfs_lib.Mdfs.convert dir ~out ~open_ with
   | Ok () -> Ok ()
   | Error (`Msg m) -> Error (`Msg m)
 
-let main_t = Term.(term_result (const main $ dir $ out $ setup_log))
+let main_t = Term.(term_result (const main $ dir $ out $ open_arg $ setup_log))
 
 let () = Term.exit @@ Term.eval (main_t, Term.info "mdfs")
