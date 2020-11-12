@@ -2,4 +2,4 @@
  (name mdfs)
  (public_name mdfs)
  (libraries cmdliner mdfs_lib logs.cli fmt.tty logs.fmt fmt.cli lwt.unix
-   rresult fpath))
+   rresult fpath ptime ptime.clock.os))

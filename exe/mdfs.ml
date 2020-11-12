@@ -1,5 +1,3 @@
-open Cmdliner
-
 let setup_log style_renderer level =
   let pp_header ppf (level, _so) =
     let style =
@@ -10,12 +8,18 @@ let setup_log style_renderer level =
       | Debug -> `Fg `Green
       | App -> `Fg `Cyan
     in
-    Fmt.pf ppf "[%a] " (Fmt.styled style Logs.pp_level) level
+    Fmt.pf ppf "[%a %a] "
+      (Ptime.pp_rfc3339 ~frac_s:2 ())
+      (Ptime_clock.now ())
+      (Fmt.styled style Logs.pp_level)
+      level
   in
   Fmt_tty.setup_std_outputs ?style_renderer ();
   Logs.set_level level;
   Logs.set_reporter (Logs_fmt.reporter ~pp_header ());
   ()
+
+open Cmdliner
 
 let setup_log =
   Term.(const setup_log $ Fmt_cli.style_renderer () $ Logs_cli.level ())
