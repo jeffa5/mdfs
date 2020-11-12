@@ -9,6 +9,6 @@ type t = tree list
 
 val parse : Fpath.t -> (t, R.msg) result
 
-val process : t -> t
+val process : Fpath.t -> t -> t
 
 val render : Fpath.t -> t -> (unit, R.msg) result

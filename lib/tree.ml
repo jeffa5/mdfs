@@ -59,18 +59,25 @@ let parse src_dir =
   in
   handle_dir src_dir
 
-let md_to_html_links d =
+let md_to_html_links path d =
   let convert_link (l : Omd.link) =
-    let f = Fpath.of_string l.destination in
-    match f with
-    | Error _ -> l
-    | Ok f ->
-        if Fpath.is_rel f && is_md_file f then
-          {
-            l with
-            destination = Filename.remove_extension l.destination ^ ".html";
-          }
-        else l
+    if Uri.of_string l.destination |> Uri.scheme |> Option.is_some then l
+    else
+      let f = Fpath.of_string l.destination in
+      match f with
+      | Error _ -> l
+      | Ok f ->
+          Logs.debug (fun m -> m "Converting link %a" Fpath.pp f);
+          let relative = Fpath.append (Fpath.parent path) f in
+          if OS.File.must_exist relative |> R.is_ok |> not then
+            Logs.warn (fun m ->
+                m "File target does not exist: %a" Fpath.pp relative);
+          if Fpath.is_rel f && is_md_file f then
+            {
+              l with
+              destination = Filename.remove_extension l.destination ^ ".html";
+            }
+          else l
   in
   let rec convert_inline (i : Omd.inline) =
     let il_desc =
@@ -113,18 +120,18 @@ let md_to_html_links d =
   in
   List.map convert_block d
 
-let process t =
+let process root t =
   Log.info (fun f -> f "Processing");
-  let process_doc d = md_to_html_links d in
-  let rec process_tree = function
+  let process_doc path d = md_to_html_links path d in
+  let rec process_tree dir = function
     | File (f, o) ->
         Log.debug (fun m -> m "Processing file %s" f);
-        File (f, process_doc o)
+        File (f, process_doc (Fpath.add_seg dir f) o)
     | Dir (f, l) ->
         Log.debug (fun m -> m "Processing dir %s" f);
-        Dir (f, List.map process_tree l)
+        Dir (f, List.map (process_tree (Fpath.add_seg dir f)) l)
   in
-  List.map process_tree t
+  List.map (process_tree root) t
 
 let mkdirf dir = OS.Dir.create ~path:true dir |> R.map (fun _ -> ())
 

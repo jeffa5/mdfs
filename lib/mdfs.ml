@@ -12,7 +12,7 @@ let convert ~out ~open_ dir =
   in
   Log.info (fun f -> f "Converting %a into %a" Fpath.pp dir Fpath.pp out);
   Bos.OS.Dir.delete ~recurse:true out >>= fun () ->
-  Tree.parse dir >>| Tree.process >>= Tree.render out >>= fun () ->
+  Tree.parse dir >>| Tree.process dir >>= Tree.render out >>= fun () ->
   if open_ then
     Bos.Cmd.(v "xdg-open" % Fpath.to_string (Fpath.add_seg out "index.html"))
     |> Bos.OS.Cmd.run
