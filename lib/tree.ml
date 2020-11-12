@@ -71,7 +71,8 @@ let md_to_html_links path d =
           let relative = Fpath.append (Fpath.parent path) f in
           if OS.File.must_exist relative |> R.is_ok |> not then
             Logs.warn (fun m ->
-                m "File target does not exist: %a" Fpath.pp relative);
+                m "File target does not exist: %a from %a" Fpath.pp relative
+                  Fpath.pp path);
           if Fpath.is_rel f && is_md_file f then
             {
               l with
