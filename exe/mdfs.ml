@@ -1,9 +1,20 @@
 open Cmdliner
 
 let setup_log style_renderer level =
+  let pp_header ppf (level, _so) =
+    let style =
+      match level with
+      | Logs.Error -> `Fg `Red
+      | Warning -> `Fg `Yellow
+      | Info -> `Fg `Blue
+      | Debug -> `Fg `Green
+      | App -> `Fg `Cyan
+    in
+    Fmt.pf ppf "[%a] " (Fmt.styled style Logs.pp_level) level
+  in
   Fmt_tty.setup_std_outputs ?style_renderer ();
   Logs.set_level level;
-  Logs.set_reporter (Logs_fmt.reporter ());
+  Logs.set_reporter (Logs_fmt.reporter ~pp_header ());
   ()
 
 let setup_log =
