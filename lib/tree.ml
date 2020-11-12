@@ -121,9 +121,69 @@ let md_to_html_links path d =
   in
   List.map convert_block d
 
+let heading_fragments d =
+  let convert_heading d (i : Omd.inline) =
+    Logs.debug (fun m ->
+        m "Adding heading fragment for: %s"
+          ( Omd.to_sexp [ { bl_desc = Omd.Heading (d, i); bl_attributes = [] } ]
+          |> String.trim ));
+    let rec plain_text = function
+      | Omd.Link l -> ( match l.title with Some s -> s | None -> "" )
+      | Image l -> ( match l.title with Some s -> s | None -> "" )
+      | Hard_break -> ""
+      | Soft_break -> ""
+      | Concat il ->
+          List.map (fun (il : Omd.inline) -> plain_text il.il_desc) il
+          |> String.concat "-"
+      | Text s -> s
+      | Emph i -> plain_text i.il_desc
+      | Strong i -> plain_text i.il_desc
+      | Code s -> s
+      | Html _ -> ""
+    in
+    let p =
+      plain_text i.il_desc
+      |> Stringext.replace_all ~pattern:" " ~with_:"-"
+      |> Uri.of_string |> Uri.to_string
+    in
+    let il_desc =
+      Omd.Concat
+        [
+          {
+            il_desc =
+              Omd.Html
+                ( "<a name=\"" ^ p ^ "\" href=\"#" ^ p ^ "\">"
+                ^ String.make d '#' ^ "</a> " );
+            il_attributes = [];
+          };
+          i;
+        ]
+    in
+    { i with il_desc }
+  in
+  let rec convert_block (b : Omd.block) =
+    let bl_desc =
+      match b.bl_desc with
+      | Paragraph i -> Omd.Paragraph i
+      | Thematic_break -> Thematic_break
+      | List (lt, ls, bss) ->
+          List (lt, ls, List.map (List.map convert_block) bss)
+      | Blockquote bs -> Blockquote (List.map convert_block bs)
+      | Heading (d, i) -> Heading (d, convert_heading d i)
+      | Code_block (s, s') -> Code_block (s, s')
+      | Html_block s -> Html_block s
+      | Definition_list ds -> Definition_list ds
+    in
+    { b with bl_desc }
+  in
+  List.map convert_block d
+
 let process root t =
   Log.info (fun f -> f "Processing");
-  let process_doc path d = md_to_html_links path d in
+  let process_doc path d =
+    let d = md_to_html_links path d in
+    heading_fragments d
+  in
   let rec process_tree dir = function
     | File (f, o) ->
         Log.debug (fun m -> m "Processing file %s" f);
